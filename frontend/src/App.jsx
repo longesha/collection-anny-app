@@ -22,6 +22,49 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [notice, setNotice] = useState("");
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState("login");
+  const [authRole, setAuthRole] = useState("customer");
+  const [authForm, setAuthForm] = useState({ name: "", email: "", phone: "", password: "", adminCode: "" });
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("collection_anny_token");
+    if (!token) return;
+    fetch("/api/auth/me", { headers: { Authorization: "Bearer " + token } })
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((data) => setCurrentUser(data.user))
+      .catch(() => { localStorage.removeItem("collection_anny_token"); setCurrentUser(null); });
+  }, []);
+
+  async function submitAuth(event) {
+    event.preventDefault();
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      const payload = authMode === "register" ? { ...authForm, role: authRole } : { email: authForm.email, password: authForm.password };
+      const response = await fetch("/api/auth/" + (authMode === "register" ? "register" : "login"), {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Une erreur est survenue.");
+      localStorage.setItem("collection_anny_token", data.token);
+      setCurrentUser(data.user);
+      setAuthOpen(false);
+      setAuthForm({ name: "", email: "", phone: "", password: "", adminCode: "" });
+    } catch (error) {
+      setAuthError(error.message || "Impossible de joindre le serveur. Vérifiez que l'API est démarrée.");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem("collection_anny_token");
+    setCurrentUser(null);
+  }
 
   const visibleProducts = useMemo(() => {
     let list = products.filter((product) =>
@@ -67,6 +110,7 @@ function App() {
         <nav className={"main-nav " + (mobileOpen ? "is-open" : "")} aria-label="Navigation principale">
           <a onClick={() => setMobileOpen(false)} href="#accueil">Accueil</a><a onClick={() => setMobileOpen(false)} href="#boutique">Boutique</a><a onClick={() => setMobileOpen(false)} href="#histoire">Notre histoire</a><a onClick={() => setMobileOpen(false)} href="#contact">Contact</a>
         </nav>
+        <button className="account-trigger" onClick={() => currentUser ? logout() : (setAuthMode("login"), setAuthOpen(true))}>{currentUser ? "Déconnexion" : "Mon compte"}</button>
         <button className="cart-trigger" onClick={() => setCartOpen(true)} aria-label={"Ouvrir le panier, " + cartCount + " articles"}><span>Panier</span><span className="cart-count">{cartCount}</span></button>
       </header>
       <main>
@@ -79,6 +123,7 @@ function App() {
         <section className="shop-section section" id="boutique">
           <div className="section-heading"><div><p className="eyebrow">LA SÉLECTION ANNY</p><h2>Vos prochains <em>essentiels.</em></h2></div><p>Explorez une sélection pensée pour<br />accompagner chaque moment de votre vie.</p></div>
           <div className="shop-toolbar"><div className="category-tabs" aria-label="Filtrer par catégorie">{categories.map((item) => <button key={item} className={category === item ? "active" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div><div className="shop-controls"><label className="search-box"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un article" aria-label="Rechercher un article" /></label><select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Trier les articles"><option value="featured">À la une</option><option value="low">Prix croissant</option><option value="high">Prix décroissant</option></select></div></div>
+          <p className="results-count">{visibleProducts.length} article(s) trouvé(s)</p>
           <div className="product-grid">{visibleProducts.map((product) => <article className="product-card" key={product.id}><button className="product-image" onClick={() => setSelected(product)} aria-label={"Voir " + product.name}><img src={product.image} alt={product.name} loading="lazy" /><span className="product-tag">{product.tag}</span><span className="quick-view">Voir le détail ↗</span></button><div className="product-info"><div><p>{product.category} · {product.color}</p><h3>{product.name}</h3></div><strong>{money(product.price)}</strong></div><button className="add-button" onClick={() => addToCart(product)}>Ajouter au panier <span>＋</span></button></article>)}{!visibleProducts.length && <div className="empty-results"><span>⌕</span><h3>Aucun article trouvé</h3><p>Essayez un autre mot ou une autre catégorie.</p><button onClick={() => { setSearch(""); setCategory("Tout voir"); }}>Réinitialiser les filtres</button></div>}</div>
           <p className="catalog-note">Sélection de démonstration : les articles, prix et disponibilités seront remplacés par les données réelles de la boutique.</p>
         </section>
@@ -90,6 +135,7 @@ function App() {
       {cartOpen && <div className="overlay" onClick={() => setCartOpen(false)}><aside className="cart-drawer" onClick={(event) => event.stopPropagation()}><div className="drawer-heading"><div><p className="eyebrow">VOTRE SÉLECTION</p><h2>Mon panier <span>({cartCount})</span></h2></div><button onClick={() => setCartOpen(false)} aria-label="Fermer le panier">✕</button></div>
         {cart.length ? <><div className="cart-items">{cart.map((item) => <div className="cart-item" key={item.id}><img src={item.image} alt="" /><div className="cart-item-info"><strong>{item.name}</strong><small>{money(item.price)} · {item.color}</small><div className="quantity-control"><button onClick={() => changeQuantity(item.id, -1)} aria-label="Diminuer">−</button><span>{item.quantity}</span><button onClick={() => changeQuantity(item.id, 1)} aria-label="Augmenter">＋</button></div></div><strong>{money(item.price * item.quantity)}</strong></div>)}</div><div className="cart-summary"><div><span>Sous-total indicatif</span><strong>{money(total)}</strong></div><small>La disponibilité, le prix final et la livraison seront confirmés par la boutique.</small><button className="button button-dark checkout-button" onClick={sendOrder}>Continuer sur WhatsApp <span>↗</span></button></div></> : <div className="cart-empty"><span>♡</span><h3>Votre panier est vide</h3><p>Ajoutez vos coups de cœur pour les retrouver ici.</p><button className="button button-dark" onClick={() => setCartOpen(false)}>Explorer la boutique</button></div>}
       </aside></div>}
+      {authOpen && <div className="overlay modal-overlay" onClick={() => setAuthOpen(false)}><section className="auth-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setAuthOpen(false)} aria-label="Fermer">✕</button><div className="auth-brand"><span className="brand-mark">CA</span><strong>Collection Anny</strong></div><p className="eyebrow">{authMode === "register" ? "REJOIGNEZ NOTRE BOUTIQUE" : "HEUREUX DE VOUS RETROUVER"}</p><h2>{authMode === "register" ? "Créer un compte" : "Se connecter"}</h2><p className="auth-intro">{authMode === "register" ? "Créez votre espace personnel." : "Accédez à votre espace Collection Anny."}</p><form onSubmit={submitAuth} className="auth-form">{authMode === "register" && <><label>Nom complet<input required maxLength="120" value={authForm.name} onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })} placeholder="Votre nom complet" /></label><label>Téléphone<input value={authForm.phone} onChange={(e) => setAuthForm({ ...authForm, phone: e.target.value })} placeholder="+243..." /></label><div className="auth-role"><button type="button" className={authRole === "customer" ? "selected" : ""} onClick={() => setAuthRole("customer")}>Compte client</button><button type="button" className={authRole === "admin" ? "selected" : ""} onClick={() => setAuthRole("admin")}>Administrateur</button></div>{authRole === "admin" && <label>Code d'invitation administrateur<input required value={authForm.adminCode} onChange={(e) => setAuthForm({ ...authForm, adminCode: e.target.value })} placeholder="Code secret privé" /></label>}</>}<label>Adresse e-mail<input type="email" required autoComplete="email" value={authForm.email} onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })} placeholder="nom@exemple.com" /></label><label>Mot de passe<input type="password" required minLength="8" autoComplete={authMode === "register" ? "new-password" : "current-password"} value={authForm.password} onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })} placeholder="8 caractères minimum" /></label>{authError && <p className="auth-error" role="alert">{authError}</p>}<button className="button button-dark auth-submit" type="submit" disabled={authLoading}>{authLoading ? "Veuillez patienter..." : authMode === "register" ? "Créer mon compte" : "Se connecter"}</button></form><p className="auth-switch">{authMode === "register" ? "Vous avez déjà un compte ?" : "Vous n'avez pas encore de compte ?"} <button onClick={() => { setAuthMode(authMode === "register" ? "login" : "register"); setAuthError(""); }}>{authMode === "register" ? "Se connecter" : "Créer un compte"}</button></p><p className="auth-security">Les comptes administrateur nécessitent un code d'invitation privé.</p></section></div>}
       {selected && <div className="overlay modal-overlay" onClick={() => setSelected(null)}><section className="product-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)} aria-label="Fermer">✕</button><img src={selected.image} alt={selected.name} /><div className="modal-copy"><p className="eyebrow">{selected.category} · {selected.color}</p><h2>{selected.name}</h2><strong>{money(selected.price)}</strong><p>{selected.description}</p><small>Article de démonstration — disponibilité à confirmer.</small><button className="button button-dark" onClick={() => { addToCart(selected); setSelected(null); setCartOpen(true); }}>Ajouter au panier <span>＋</span></button></div></section></div>}
     </div>
   );
