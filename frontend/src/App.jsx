@@ -53,7 +53,7 @@ function App() {
     if (!cart.length) return;
     const lines = cart.map((item) => "• " + item.name + " x" + item.quantity + " — " + money(item.price * item.quantity)).join("\n");
     const message = ["Bonjour Collection Anny, je souhaite commander :", lines, "", "Total indicatif : " + money(total), "Merci de confirmer la disponibilité et les modalités de livraison."].join("\n");
-    window.open("https://wa.me/24382074897?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
+    window.open("https://wa.me/243820744897?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -81,7 +81,7 @@ function App() {
           <p className="catalog-note">Sélection de démonstration : les articles, prix et disponibilités seront remplacés par les données réelles de la boutique.</p>
         </section>
         <section className="editorial section" id="histoire"><div className="editorial-image"><img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1100&q=85" alt="Sélection de looks mode" loading="lazy" /><span>THE ANNY EDIT</span></div><div className="editorial-copy"><p className="eyebrow">L'ESPRIT COLLECTION ANNY</p><h2>Le style n'est pas<br />une tendance.<br /><em>C'est votre signature.</em></h2><p>Collection Anny célèbre une mode féminine, expressive et accessible. Nous voulons vous aider à trouver des pièces dans lesquelles vous vous sentez belle, libre et pleinement vous-même.</p><a className="text-link" href="#contact">Parlons de votre style ↗</a></div></section>
-        <section className="contact section" id="contact"><p className="eyebrow">UNE QUESTION ? UN COUP DE CŒUR ?</p><h2>Nous sommes à<br /><em>votre écoute.</em></h2><p>Besoin d'un renseignement sur un article ou d'un conseil ? Écrivez directement à notre équipe.</p><div className="contact-actions"><a className="button button-gold" href="https://wa.me/24382074897" target="_blank" rel="noreferrer">Écrire sur WhatsApp <span>↗</span></a><a className="contact-email" href="mailto:longeshaandy@gmail.com">longeshaandy@gmail.com</a></div><small>LUBUMBASHI · RÉPUBLIQUE DÉMOCRATIQUE DU CONGO</small></section>
+        <section className="contact section" id="contact"><p className="eyebrow">UNE QUESTION ? UN COUP DE CŒUR ?</p><h2>Nous sommes à<br /><em>votre écoute.</em></h2><p>Besoin d'un renseignement sur un article ou d'un conseil ? Écrivez directement à notre équipe.</p><div className="contact-actions"><a className="button button-gold" href="https://wa.me/243820744897" target="_blank" rel="noreferrer">Écrire sur WhatsApp <span>↗</span></a><a className="contact-email" href="mailto:longeshaandy@gmail.com">longeshaandy@gmail.com</a></div><small>LUBUMBASHI · RÉPUBLIQUE DÉMOCRATIQUE DU CONGO</small></section>
       </main>
       <footer className="site-footer"><a className="footer-brand" href="#accueil">Collection Anny<span>.</span></a><span>© {new Date().getFullYear()} Collection Anny. Tous droits réservés.</span><a href="#accueil">Retour en haut ↑</a></footer>
       {notice && <div className="toast" role="status">{notice}</div>}
