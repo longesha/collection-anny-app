@@ -1,0 +1,122 @@
+import { Router } from "express";
+import { createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+import database from "../config/database.js";
+import { requireAuth } from "../middleware/auth.middleware.js";
+
+const router = Router();
+const scrypt = promisify(scryptCallback);
+
+async function ensureUsersTable() {
+  await database.execute(`
+    CREATE TABLE IF NOT EXISTS users (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(120) NOT NULL,
+      email VARCHAR(190) NOT NULL UNIQUE,
+      phone VARCHAR(30) NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      role ENUM('customer','admin') NOT NULL DEFAULT 'customer',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+}
+
+function createToken(user) {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) throw new Error("Configurez JWT_SECRET (au moins 32 caractères) dans backend/.env.");
+  const payload = Buffer.from(JSON.stringify({
+    sub: String(user.id),
+    role: user.role,
+    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7
+  })).toString("base64url");
+  const signature = createHmac("sha256", secret).update(payload).digest("base64url");
+  return payload + "." + signature;
+}
+
+async function hashPassword(password) {
+  const salt = randomBytes(16);
+  const derived = await scrypt(password, salt, 64);
+  return salt.toString("hex") + ":" + Buffer.from(derived).toString("hex");
+}
+
+async function verifyPassword(password, stored) {
+  const [saltHex, hashHex] = String(stored).split(":");
+  if (!saltHex || !hashHex) return false;
+  const expected = Buffer.from(hashHex, "hex");
+  const actual = Buffer.from(await scrypt(password, Buffer.from(saltHex, "hex"), expected.length));
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+function publicUser(user) {
+  return { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role };
+}
+
+router.post("/register", async (req, res) => {
+  try {
+    await ensureUsersTable();
+    const { name, email, phone = "", password, role = "customer", adminCode = "" } = req.body || {};
+    if (!name?.trim() || !email?.trim() || !password) {
+      return res.status(400).json({ success: false, message: "Nom, adresse e-mail et mot de passe sont obligatoires." });
+    }
+    if (name.trim().length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return res.status(400).json({ success: false, message: "Veuillez vérifier le nom et l'adresse e-mail." });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ success: false, message: "Le mot de passe doit contenir au moins 8 caractères." });
+    }
+    if (role !== "customer" && role !== "admin") {
+      return res.status(400).json({ success: false, message: "Type de compte invalide." });
+    }
+    if (role === "admin" && (!process.env.ADMIN_INVITE_CODE || adminCode !== process.env.ADMIN_INVITE_CODE)) {
+      return res.status(403).json({ success: false, message: "Code d'invitation administrateur incorrect." });
+    }
+    const passwordHash = await hashPassword(password);
+    const [result] = await database.execute(
+      "INSERT INTO users (name, email, phone, password_hash, role) VALUES (?, ?, ?, ?, ?)",
+      [name.trim(), email.trim().toLowerCase(), phone.trim(), passwordHash, role]
+    );
+    const user = { id: result.insertId, name: name.trim(), email: email.trim().toLowerCase(), phone: phone.trim(), role };
+    return res.status(201).json({ success: true, message: "Compte créé avec succès.", token: createToken(user), user: publicUser(user) });
+  } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") return res.status(409).json({ success: false, message: "Cette adresse e-mail possède déjà un compte." });
+    console.error("Register error:", error);
+    return res.status(500).json({ success: false, message: "Impossible de créer le compte pour le moment." });
+  }
+});
+
+router.post("/login", async (req, res) => {
+  try {
+    await ensureUsersTable();
+    const { email, password } = req.body || {};
+    if (!email?.trim() || !password) return res.status(400).json({ success: false, message: "E-mail et mot de passe obligatoires." });
+    const [rows] = await database.execute(
+      "SELECT id, name, email, phone, password_hash, role FROM users WHERE email = ? LIMIT 1",
+      [email.trim().toLowerCase()]
+    );
+    if (!rows.length || !(await verifyPassword(password, rows[0].password_hash))) {
+      return res.status(401).json({ success: false, message: "Adresse e-mail ou mot de passe incorrect." });
+    }
+    const user = publicUser(rows[0]);
+    return res.json({ success: true, message: "Connexion réussie.", token: createToken(user), user });
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({ success: false, message: "Impossible de se connecter pour le moment." });
+  }
+});
+
+router.get("/me", requireAuth, async (req, res) => {
+  try {
+    await ensureUsersTable();
+    const [rows] = await database.execute(
+      "SELECT id, name, email, phone, role FROM users WHERE id = ? LIMIT 1",
+      [req.auth.sub]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, message: "Compte introuvable." });
+    return res.json({ success: true, user: publicUser(rows[0]) });
+  } catch (error) {
+    console.error("Profile error:", error);
+    return res.status(500).json({ success: false, message: "Impossible de charger le profil." });
+  }
+});
+
+export default router;
