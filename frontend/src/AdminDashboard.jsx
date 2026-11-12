@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import AdminOrdersPanel from "./AdminOrdersPanel.jsx";
 
 const emptyForm = { name: "", category: "Boubous", price: "", color: "", image_url: "", description: "", stock: "0" };
 const money = (value) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(Number(value || 0));
@@ -73,7 +74,7 @@ export default function AdminDashboard({ user, onLogout }) {
       <p className="admin-sidebar-label">ESPACE DE GESTION</p>
       <a className="admin-nav active" href="#admin">▦ Tableau de bord</a>
       <a className="admin-nav" href="#admin-products">◇ Produits</a>
-      <span className="admin-nav muted">▤ Commandes — bientôt</span>
+      <a className="admin-nav" href="#admin-orders">▤ Commandes</a>
       <span className="admin-nav muted">♙ Clients — bientôt</span>
       <span className="admin-nav muted">▥ Statistiques — bientôt</span>
       <div className="admin-sidebar-bottom"><small>Connecté en tant que</small><strong>{user.name}</strong><button onClick={onLogout}>Déconnexion</button></div>
@@ -85,6 +86,7 @@ export default function AdminDashboard({ user, onLogout }) {
         <article className="admin-stat"><span>Unités en stock</span><strong>{stockTotal}</strong><small>Quantité cumulée</small></article>
         <article className="admin-stat"><span>Produits en rupture</span><strong>{products.filter((p) => Number(p.stock) === 0).length}</strong><small>Stock égal à zéro</small></article>
       </section>
+      <AdminOrdersPanel />
       <section className="admin-panel" id="admin-products">
         <div className="admin-panel-heading"><div><p className="eyebrow">CATALOGUE</p><h2>{editingId ? "Modifier un produit" : "Ajouter un produit"}</h2></div></div>
         <form className="admin-product-form" onSubmit={submit}>
