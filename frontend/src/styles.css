@@ -54,3 +54,5 @@
 .admin-order-bottom{padding-top:10px;border-top:1px solid #EEE7DB}
 .admin-order-bottom>strong,.customer-order-bottom>strong{font-family:"Playfair Display",serif;font-size:17px;font-weight:500}
 @media(max-width:650px){.customer-modal{padding:28px 18px}.customer-modal h2{font-size:27px}.customer-profile{padding:12px}.customer-profile>img{width:68px;height:68px}.customer-order-bottom,.admin-order-bottom{align-items:flex-start;flex-direction:column}.customer-order-bottom>div,.admin-order-bottom>div{justify-content:flex-start}.customer-order-top,.admin-order-heading{align-items:flex-start;flex-direction:column}}
+
+.customer-logout{margin-top:22px;padding:10px 14px;border:1px solid #C5A15B;background:transparent;color:#514a3e;font-size:10px}
