@@ -26,11 +26,60 @@ function App() {
   const categories = useMemo(() => ["Tout voir", ...new Set(products.map((product) => product.category).filter(Boolean))], [products]);
 
   useEffect(() => {
-    fetch("/api/products")
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Impossible de charger les produits.")))
-      .then((data) => setProducts((data.products || []).map((product) => ({ ...product, image: product.image_url || "", tag: Number(product.stock) === 0 ? "ÉPUISÉ" : "NOUVEAUTÉ" }))))
-      .catch((error) => setCatalogError(error.message || "Le catalogue est momentanément indisponible."))
-      .finally(() => setCatalogLoading(false));
+    let cancelled = false;
+
+    async function loadProducts() {
+      let lastError;
+
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const controller = new AbortController();
+          const timeout = window.setTimeout(() => controller.abort(), 10000);
+
+          let response;
+          try {
+            response = await fetch("/api/products", { signal: controller.signal });
+          } finally {
+            window.clearTimeout(timeout);
+          }
+
+          if (!response.ok) {
+            throw new Error("Impossible de charger les produits.");
+          }
+
+          const data = await response.json();
+          if (cancelled) return;
+
+          setProducts((data.products || []).map((product) => ({
+            ...product,
+            image: product.image_url || "",
+            tag: Number(product.stock) === 0 ? "ÉPUISÉ" : "NOUVEAUTÉ"
+          })));
+          setCatalogError("");
+          return;
+        } catch (error) {
+          lastError = error;
+          if (cancelled) return;
+          if (attempt < 2) {
+            await new Promise((resolve) => window.setTimeout(resolve, 1000 * (attempt + 1)));
+          }
+        }
+      }
+
+      if (!cancelled) {
+        setCatalogError(lastError?.name === "AbortError"
+          ? "Le chargement prend trop de temps. Veuillez réessayer."
+          : "Impossible de charger les produits. Veuillez actualiser la page.");
+      }
+    }
+
+    loadProducts().finally(() => {
+      if (!cancelled) setCatalogLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
