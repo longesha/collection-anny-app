@@ -159,6 +159,8 @@ function App() {
       return;
     }
     setOrderLoading(true);
+    // Ouvre une fenêtre immédiatement pendant le clic pour éviter le blocage des pop-ups.
+    const whatsappWindow = window.open("about:blank", "_blank");
     try {
       const token = localStorage.getItem("collection_anny_token");
       const response = await fetch("/api/orders", {
@@ -170,10 +172,37 @@ function App() {
       if (!response.ok) throw new Error(data.message || "Impossible d'enregistrer la commande.");
       setCart([]);
       setCartOpen(false);
+      const order = data.order;
+      const orderLines = (order.items || []).map((item) =>
+        "- " + item.name + " x" + item.quantity + " : " + money(item.lineTotal)
+      ).join("\n");
+      const whatsappMessage = [
+        "Bonjour Collection Anny ! Je viens de passer une commande.",
+        "",
+        "Référence : " + order.reference,
+        "Client : " + (order.customer_name || currentUser.name),
+        "Téléphone : " + (order.customer_phone || currentUser.phone || "Non renseigné"),
+        "",
+        "Articles :",
+        orderLines,
+        "",
+        "Total : " + money(order.total),
+        "Statut : En attente",
+        "",
+        "Merci de confirmer ma commande."
+      ].join("\n");
+      const whatsappUrl = "https://wa.me/243820744897?text=" + encodeURIComponent(whatsappMessage);
+      if (whatsappWindow) {
+        whatsappWindow.location.href = whatsappUrl;
+      } else {
+        setNotice("Commande enregistrée. Autorisez les fenêtres pop-up pour ouvrir WhatsApp.");
+        window.setTimeout(() => setNotice(""), 5000);
+      }
       setAccountOpen(true);
-      setNotice("Commande " + data.order.reference + " enregistrée avec succès.");
-      window.setTimeout(() => setNotice(""), 4000);
+      setNotice("Commande " + order.reference + " enregistrée. Envoyez le message WhatsApp pour prévenir la boutique.");
+      window.setTimeout(() => setNotice(""), 5000);
     } catch (error) {
+      if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
       setNotice(error.message || "Une erreur est survenue.");
       window.setTimeout(() => setNotice(""), 4500);
     } finally { setOrderLoading(false); }
