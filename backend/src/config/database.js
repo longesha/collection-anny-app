@@ -1,14 +1,21 @@
-import mysql from "mysql2/promise";
+import pg from "pg";
 
-const database = mysql.createPool({
-  host: process.env.DB_HOST || "localhost",
-  port: Number(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "",
-  database: process.env.DB_NAME || "collection_anny",
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+const { Pool } = pg;
+
+if (!process.env.DATABASE_URL) {
+  console.warn("DATABASE_URL absent : configurez la connexion Neon dans backend/.env.");
+}
+
+const database = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : undefined,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000
+});
+
+database.on("error", (error) => {
+  console.error("Erreur inattendue du pool PostgreSQL :", error);
 });
 
 export default database;
