@@ -8,6 +8,7 @@ export default function AdminCustomersPanel() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
   const token = localStorage.getItem("collection_anny_token");
 
   async function load() {
@@ -26,6 +27,29 @@ export default function AdminCustomersPanel() {
   }
 
   useEffect(() => { load(); }, []);
+
+  async function removeCustomer(customer) {
+    if (Number(customer.order_count) > 0) {
+      setError("Ce client possède un historique de commandes : son compte ne peut pas être supprimé pour préserver les ventes.");
+      return;
+    }
+    if (!window.confirm("Supprimer définitivement le compte de " + customer.name + " ? Cette action est irréversible.")) return;
+    setDeletingId(customer.id);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/customers/" + customer.id, {
+        method: "DELETE",
+        headers: { Authorization: "Bearer " + token }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Impossible de supprimer le client.");
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -58,6 +82,13 @@ export default function AdminCustomersPanel() {
               <p><strong>Inscription :</strong> {new Date(customer.created_at).toLocaleDateString("fr-FR")}</p>
               <p><strong>Dernière commande :</strong> {customer.last_order_at ? new Date(customer.last_order_at).toLocaleDateString("fr-FR") : "Aucune commande"}</p>
               {waPhone && <a className="admin-customer-whatsapp" href={"https://wa.me/" + waPhone} target="_blank" rel="noreferrer">Contacter sur WhatsApp ↗</a>}
+              <button
+                className="admin-customer-delete"
+                disabled={Number(customer.order_count) > 0 || deletingId === customer.id}
+                onClick={() => removeCustomer(customer)}
+                title={Number(customer.order_count) > 0 ? "Un client avec des commandes ne peut pas être supprimé" : "Supprimer ce compte client"}
+              >{deletingId === customer.id ? "Suppression..." : "Supprimer le client"}</button>
+              {Number(customer.order_count) > 0 && <small className="admin-customer-delete-note">Suppression désactivée : historique de commandes à conserver.</small>}
               <h3>Historique des commandes</h3>
               {customer.orders.length ? <div className="admin-customer-orders">{customer.orders.map(order => <div key={order.id}><span><strong>{order.reference}</strong><small>{new Date(order.created_at).toLocaleDateString("fr-FR")}</small></span><span className={"order-status status-" + order.status}>{statuses[order.status] || order.status}</span><strong>{money(order.total)}</strong></div>)}</div> : <p className="customer-empty">Ce client n'a pas encore passé de commande.</p>}
             </div>
