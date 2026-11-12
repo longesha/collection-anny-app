@@ -1,17 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminDashboard from "./AdminDashboard.jsx";
 
-const products = [
-  { id: 1, name: "Boubou Bleu Royal", category: "Boubous", price: 58, tag: "BRODÉ", color: "Bleu royal", image: "https://m.media-amazon.com/images/I/81EU2EPVKHL._AC_SL1000__.jpg", description: "Un boubou long bleu royal, ample et élégant, avec broderies colorées et foulard assorti." },
-  { id: 2, name: "Boubou Vert Émeraude", category: "Boubous", price: 62, tag: "COUP DE CŒUR", color: "Vert et or", image: "https://i.etsystatic.com/63702679/r/il/ebf201/8078906593/il_1080xN.8078906593_4r20.jpg", description: "Un boubou fluide vert profond rehaussé de broderies dorées pour les grandes occasions." },
-  { id: 3, name: "Boubou Noir Brodé", category: "Boubous", price: 55, tag: "ÉLÉGANCE", color: "Noir et or", image: "https://static.wixstatic.com/media/95e191_477e9bea36384a69a1fce133ae2fa54a~mv2.jpg/v1/fill/w_980%2Ch_980%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/95e191_477e9bea36384a69a1fce133ae2fa54a~mv2.jpg", description: "Une coupe ample et majestueuse, décorée de motifs brodés contrastants." },
-  { id: 4, name: "Boubou Rouge Prestige", category: "Boubous", price: 64, tag: "CÉRÉMONIE", color: "Rouge et or", image: "https://ae01.alicdn.com/kf/S20fa898822ac4d35858b8db58144519fb/Robes-africaines-pour-femmes-broderie-Bazin-Riche-style-libre-avec-charpe.jpg", description: "Un boubou rouge profond avec broderies dorées et foulard coordonné." },
-  { id: 5, name: "Boubou Rose Lumière", category: "Boubous", price: 60, tag: "NOUVEAUTÉ", color: "Rose et or", image: "https://i.etsystatic.com/26939186/r/il/5c14dc/6177801014/il_1588xN.6177801014_ircx.jpg", description: "Une tenue ample rose poudré ornée de détails dorés raffinés." },
-  { id: 6, name: "Boubou Vert Tradition", category: "Boubous", price: 59, tag: "SÉLECTION", color: "Vert et jaune", image: "https://i.etsystatic.com/26939186/r/il/3dd7f6/6225851327/il_794xN.6225851327_hax4.jpg", description: "Un modèle traditionnel en bazin riche, aux manches larges et motifs brodés." },
-  { id: 7, name: "Sac Signature", category: "Accessoires", price: 32, tag: "ACCESSOIRE", color: "Camel", image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=900&q=85", description: "La touche finale qui accompagne vos essentiels au quotidien." },
-  { id: 8, name: "Lunettes Chic", category: "Accessoires", price: 18, tag: "PETIT PRIX", color: "Doré", image: "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=900&q=85", description: "Un accessoire affirmé pour compléter votre style." }
-]
-const categories = ["Tout voir", "Boubous", "Accessoires"];
+const money = (value) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 const money = (value) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 
 function App() {
@@ -30,6 +20,19 @@ function App() {
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState("");
+
+  const categories = useMemo(() => ["Tout voir", ...new Set(products.map((product) => product.category).filter(Boolean))], [products]);
+
+  useEffect(() => {
+    fetch("/api/products")
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Impossible de charger les produits.")))
+      .then((data) => setProducts((data.products || []).map((product) => ({ ...product, image: product.image_url || "", tag: Number(product.stock) === 0 ? "ÉPUISÉ" : "NOUVEAUTÉ" }))))
+      .catch((error) => setCatalogError(error.message || "Le catalogue est momentanément indisponible."))
+      .finally(() => setCatalogLoading(false));
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("collection_anny_token");
@@ -127,8 +130,8 @@ function App() {
           <div className="section-heading"><div><p className="eyebrow">LA SÉLECTION ANNY</p><h2>Vos prochains <em>essentiels.</em></h2></div><p>Explorez une sélection pensée pour<br />accompagner chaque moment de votre vie.</p></div>
           <div className="shop-toolbar"><div className="category-tabs" aria-label="Filtrer par catégorie">{categories.map((item) => <button key={item} className={category === item ? "active" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div><div className="shop-controls"><label className="search-box"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un article" aria-label="Rechercher un article" /></label><select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Trier les articles"><option value="featured">À la une</option><option value="low">Prix croissant</option><option value="high">Prix décroissant</option></select></div></div>
           <p className="results-count">{visibleProducts.length} article(s) trouvé(s)</p>
-          <div className="product-grid">{visibleProducts.map((product) => <article className="product-card" key={product.id}><button className="product-image" onClick={() => setSelected(product)} aria-label={"Voir " + product.name}><img src={product.image} alt={product.name} loading="lazy" /><span className="product-tag">{product.tag}</span><span className="quick-view">Voir le détail ↗</span></button><div className="product-info"><div><p>{product.category} · {product.color}</p><h3>{product.name}</h3></div><strong>{money(product.price)}</strong></div><button className="add-button" onClick={() => addToCart(product)}>Ajouter au panier <span>＋</span></button></article>)}{!visibleProducts.length && <div className="empty-results"><span>⌕</span><h3>Aucun article trouvé</h3><p>Essayez un autre mot ou une autre catégorie.</p><button onClick={() => { setSearch(""); setCategory("Tout voir"); }}>Réinitialiser les filtres</button></div>}</div>
-          <p className="catalog-note">Sélection de démonstration : les articles, prix et disponibilités seront remplacés par les données réelles de la boutique.</p>
+          <div className="product-grid">{catalogLoading ? <p>Chargement du catalogue...</p> : catalogError ? <p className="catalog-note">{catalogError}</p> : visibleProducts.map((product) => <article className="product-card" key={product.id}><button className="product-image" onClick={() => setSelected(product)} aria-label={"Voir " + product.name}><img src={product.image} alt={product.name} loading="lazy" /><span className="product-tag">{product.tag}</span><span className="quick-view">Voir le détail ↗</span></button><div className="product-info"><div><p>{product.category} · {product.color}</p><h3>{product.name}</h3></div><strong>{money(product.price)}</strong></div><button className="add-button" onClick={() => addToCart(product)}>Ajouter au panier <span>＋</span></button></article>)}{!visibleProducts.length && <div className="empty-results"><span>⌕</span><h3>Aucun article trouvé</h3><p>Essayez un autre mot ou une autre catégorie.</p><button onClick={() => { setSearch(""); setCategory("Tout voir"); }}>Réinitialiser les filtres</button></div>}</div>
+          <p className="catalog-note">Les produits et leurs disponibilités sont fournis par la boutique Collection Anny.</p>
         </section>
         <section className="editorial section" id="histoire"><div className="editorial-image"><img src="https://i.etsystatic.com/63702679/r/il/ebf201/8078906593/il_1080xN.8078906593_4r20.jpg" alt="Boubou africain vert émeraude brodé" loading="lazy" /><span>THE ANNY EDIT</span></div><div className="editorial-copy"><p className="eyebrow">L'ESPRIT COLLECTION ANNY</p><h2>Le style n'est pas<br />une tendance.<br /><em>C'est votre signature.</em></h2><p>Collection Anny célèbre une mode féminine, expressive et accessible. Nous voulons vous aider à trouver des pièces dans lesquelles vous vous sentez belle, libre et pleinement vous-même.</p><a className="text-link" href="#contact">Parlons de votre style ↗</a></div></section>
         <section className="contact section" id="contact"><p className="eyebrow">UNE QUESTION ? UN COUP DE CŒUR ?</p><h2>Nous sommes à<br /><em>votre écoute.</em></h2><p>Besoin d'un renseignement sur un article ou d'un conseil ? Écrivez directement à notre équipe.</p><div className="contact-actions"><a className="button button-gold" href="https://wa.me/243820744897" target="_blank" rel="noreferrer">Écrire sur WhatsApp <span>↗</span></a><a className="contact-email" href="mailto:longeshaandy@gmail.com">longeshaandy@gmail.com</a></div><small>LUBUMBASHI · RÉPUBLIQUE DÉMOCRATIQUE DU CONGO</small></section>
