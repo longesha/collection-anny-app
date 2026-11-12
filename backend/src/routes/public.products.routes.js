@@ -4,36 +4,36 @@ import database from "../config/database.js";
 const router = Router();
 
 async function ensureProductsTable() {
-  await database.execute(`
+  await database.query(`
     CREATE TABLE IF NOT EXISTS products (
-      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      id BIGSERIAL PRIMARY KEY,
       name VARCHAR(160) NOT NULL,
       category VARCHAR(80) NOT NULL DEFAULT 'Boubous',
-      price DECIMAL(10,2) NOT NULL,
+      price NUMERIC(10,2) NOT NULL CHECK (price > 0),
       color VARCHAR(80) NOT NULL DEFAULT '',
-      image_url TEXT NULL,
-      description TEXT NULL,
-      stock INT UNSIGNED NOT NULL DEFAULT 0,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      image_url TEXT,
+      description TEXT,
+      stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
   `);
 }
 
 async function importDemoBoubousOnce() {
-  await database.execute(`
+  await database.query(`
     CREATE TABLE IF NOT EXISTS app_migrations (
-      migration_key VARCHAR(120) NOT NULL PRIMARY KEY,
-      applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      migration_key VARCHAR(120) PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
   `);
 
   const migrationKey = "import_demo_boubous_2026_11";
-  const [migrations] = await database.execute(
-    "SELECT migration_key FROM app_migrations WHERE migration_key = ?",
+  const migration = await database.query(
+    "SELECT migration_key FROM app_migrations WHERE migration_key = $1",
     [migrationKey]
   );
-  if (migrations.length) return;
+  if (migration.rowCount) return;
 
   const demoBoubous = [
     ["Boubou Bleu Royal", "Boubous", 58, "Bleu royal", "https://m.media-amazon.com/images/I/81EU2EPVKHL._AC_SL1000__.jpg", "Un boubou long bleu royal, ample et élégant, avec broderies colorées et foulard assorti.", 5],
@@ -45,20 +45,20 @@ async function importDemoBoubousOnce() {
   ];
 
   for (const product of demoBoubous) {
-    const [existing] = await database.execute(
-      "SELECT id FROM products WHERE name = ? LIMIT 1",
+    const existing = await database.query(
+      "SELECT id FROM products WHERE name = $1 LIMIT 1",
       [product[0]]
     );
-    if (!existing.length) {
-      await database.execute(
-        "INSERT INTO products (name, category, price, color, image_url, description, stock) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    if (!existing.rowCount) {
+      await database.query(
+        "INSERT INTO products (name, category, price, color, image_url, description, stock) VALUES ($1, $2, $3, $4, $5, $6, $7)",
         product
       );
     }
   }
 
-  await database.execute(
-    "INSERT INTO app_migrations (migration_key) VALUES (?)",
+  await database.query(
+    "INSERT INTO app_migrations (migration_key) VALUES ($1) ON CONFLICT (migration_key) DO NOTHING",
     [migrationKey]
   );
 }
@@ -67,10 +67,10 @@ router.get("/", async (_req, res) => {
   try {
     await ensureProductsTable();
     await importDemoBoubousOnce();
-    const [rows] = await database.execute(
+    const result = await database.query(
       "SELECT id, name, category, price, color, image_url, description, stock FROM products ORDER BY created_at DESC"
     );
-    res.json({ success: true, products: rows });
+    res.json({ success: true, products: result.rows });
   } catch (error) {
     console.error("Public products list:", error);
     res.status(500).json({ success: false, message: "Impossible de charger le catalogue." });
