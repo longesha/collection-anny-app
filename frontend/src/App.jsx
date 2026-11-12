@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import AdminDashboard from "./AdminDashboard.jsx";
 
 const products = [
   { id: 1, name: "Boubou Bleu Royal", category: "Boubous", price: 58, tag: "BRODÉ", color: "Bleu royal", image: "https://m.media-amazon.com/images/I/81EU2EPVKHL._AC_SL1000__.jpg", description: "Un boubou long bleu royal, ample et élégant, avec broderies colorées et foulard assorti." },
@@ -100,6 +101,8 @@ function App() {
     const message = ["Bonjour Collection Anny, je souhaite commander :", lines, "", "Total indicatif : " + money(total), "Merci de confirmer la disponibilité et les modalités de livraison."].join("\n");
     window.open("https://wa.me/243820744897?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
   }
+
+  if (currentUser?.role === "admin") return <AdminDashboard user={currentUser} onLogout={logout} />;
 
   return (
     <div className="site-shell">
