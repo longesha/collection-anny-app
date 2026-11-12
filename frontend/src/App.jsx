@@ -179,7 +179,7 @@ function App() {
     } finally { setOrderLoading(false); }
   }
 
-  if (currentUser?.role === "admin") return <AdminDashboard user={currentUser} onLogout={logout} />;
+  if (currentUser?.role === "admin") return <AdminDashboard user={currentUser} onLogout={logout} onUserUpdated={setCurrentUser} />;
 
   return (
     <div className="site-shell">
