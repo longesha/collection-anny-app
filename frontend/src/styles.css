@@ -89,3 +89,8 @@
 .admin-customer-orders small{color:#756F65;font-size:9px}
 .admin-customer-orders>div>strong{font-size:10px;white-space:nowrap}
 @media(max-width:600px){.customers-toolbar{align-items:stretch;flex-direction:column}.admin-customer summary{gap:8px;padding:10px}.admin-customer-avatar{width:34px;height:34px;flex-basis:34px}.admin-customer-metrics strong{font-size:9px}.admin-customer-orders>div{align-items:flex-start;flex-wrap:wrap}}
+
+
+.admin-customer-delete{display:inline-block;margin-top:16px;padding:9px 12px;border:1px solid #d8b9b2;background:#fff;color:#9b3324;font-size:10px;cursor:pointer}
+.admin-customer-delete:disabled{opacity:.45;cursor:not-allowed}
+.admin-customer-delete-note{display:block;margin-top:7px;color:#9b3324;font-size:9px}
