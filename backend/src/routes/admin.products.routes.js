@@ -5,19 +5,19 @@ import { requireAuth, requireAdmin } from "../middleware/auth.middleware.js";
 const router = Router();
 
 async function ensureProductsTable() {
-  await database.execute(`
+  await database.query(`
     CREATE TABLE IF NOT EXISTS products (
-      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      id BIGSERIAL PRIMARY KEY,
       name VARCHAR(160) NOT NULL,
       category VARCHAR(80) NOT NULL DEFAULT 'Boubous',
-      price DECIMAL(10,2) NOT NULL,
+      price NUMERIC(10,2) NOT NULL CHECK (price > 0),
       color VARCHAR(80) NOT NULL DEFAULT '',
-      image_url TEXT NULL,
-      description TEXT NULL,
-      stock INT UNSIGNED NOT NULL DEFAULT 0,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      image_url TEXT,
+      description TEXT,
+      stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
   `);
 }
 
@@ -36,8 +36,8 @@ router.use(requireAuth, requireAdmin);
 router.get("/", async (_req, res) => {
   try {
     await ensureProductsTable();
-    const [rows] = await database.execute("SELECT * FROM products ORDER BY created_at DESC");
-    res.json({ success: true, products: rows });
+    const result = await database.query("SELECT * FROM products ORDER BY created_at DESC");
+    res.json({ success: true, products: result.rows });
   } catch (error) {
     console.error("Admin products list:", error);
     res.status(500).json({ success: false, message: "Impossible de charger les produits." });
@@ -51,12 +51,11 @@ router.post("/", async (req, res) => {
     if (!product.name || !Number.isFinite(product.price) || product.price <= 0 || !Number.isInteger(product.stock) || product.stock < 0) {
       return res.status(400).json({ success: false, message: "Nom, prix positif et stock valide sont obligatoires." });
     }
-    const [result] = await database.execute(
-      "INSERT INTO products (name, category, price, color, image_url, description, stock) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    const result = await database.query(
+      "INSERT INTO products (name, category, price, color, image_url, description, stock) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
       [product.name, product.category, product.price, product.color, product.image_url, product.description, product.stock]
     );
-    const [rows] = await database.execute("SELECT * FROM products WHERE id = ?", [result.insertId]);
-    res.status(201).json({ success: true, product: rows[0] });
+    res.status(201).json({ success: true, product: result.rows[0] });
   } catch (error) {
     console.error("Admin product create:", error);
     res.status(500).json({ success: false, message: "Impossible d'ajouter ce produit." });
@@ -70,13 +69,12 @@ router.put("/:id", async (req, res) => {
     if (!product.name || !Number.isFinite(product.price) || product.price <= 0 || !Number.isInteger(product.stock) || product.stock < 0) {
       return res.status(400).json({ success: false, message: "Nom, prix positif et stock valide sont obligatoires." });
     }
-    const [result] = await database.execute(
-      "UPDATE products SET name=?, category=?, price=?, color=?, image_url=?, description=?, stock=? WHERE id=?",
+    const result = await database.query(
+      "UPDATE products SET name=$1, category=$2, price=$3, color=$4, image_url=$5, description=$6, stock=$7, updated_at=NOW() WHERE id=$8 RETURNING *",
       [product.name, product.category, product.price, product.color, product.image_url, product.description, product.stock, req.params.id]
     );
-    if (!result.affectedRows) return res.status(404).json({ success: false, message: "Produit introuvable." });
-    const [rows] = await database.execute("SELECT * FROM products WHERE id = ?", [req.params.id]);
-    res.json({ success: true, product: rows[0] });
+    if (!result.rowCount) return res.status(404).json({ success: false, message: "Produit introuvable." });
+    res.json({ success: true, product: result.rows[0] });
   } catch (error) {
     console.error("Admin product update:", error);
     res.status(500).json({ success: false, message: "Impossible de modifier ce produit." });
@@ -86,12 +84,12 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     await ensureProductsTable();
-    const [result] = await database.execute("DELETE FROM products WHERE id = ?", [req.params.id]);
-    if (!result.affectedRows) return res.status(404).json({ success: false, message: "Produit introuvable." });
+    const result = await database.query("DELETE FROM products WHERE id=$1", [req.params.id]);
+    if (!result.rowCount) return res.status(404).json({ success: false, message: "Produit introuvable." });
     res.json({ success: true, message: "Produit supprimé." });
   } catch (error) {
     console.error("Admin product delete:", error);
-    res.status(500).json({ success: false, message: "Impossible de supprimer ce produit." });
+    res.status(500).json({ success: false, message: "Impossible de supprimer le produit." });
   }
 });
 
