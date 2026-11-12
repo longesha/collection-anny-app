@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth.routes.js";
 import adminProductsRoutes from "./routes/admin.products.routes.js";
 import publicProductsRoutes from "./routes/public.products.routes.js";
 import ordersRoutes from "./routes/orders.routes.js";
+import adminCustomersRoutes from "./routes/admin.customers.routes.js";
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin/products", adminProductsRoutes);
 app.use("/api/products", publicProductsRoutes);
 app.use("/api/orders", ordersRoutes);
+app.use("/api/admin/customers", adminCustomersRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
