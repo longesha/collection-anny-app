@@ -24,7 +24,7 @@ const neon = new Pool({
 });
 
 async function tableExists(tableName) {
-  const [rows] = await mysqlDatabase.execute("SHOW TABLES LIKE ?", [tableName]);
+  const [rows] = await mysqlDatabase.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?", [tableName]);
   return rows.length > 0;
 }
 
