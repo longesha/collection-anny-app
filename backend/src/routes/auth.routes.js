@@ -8,16 +8,17 @@ const router = Router();
 const scrypt = promisify(scryptCallback);
 
 async function ensureUsersTable() {
-  await database.execute(`
+  await database.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      id BIGSERIAL PRIMARY KEY,
       name VARCHAR(120) NOT NULL,
       email VARCHAR(190) NOT NULL UNIQUE,
-      phone VARCHAR(30) NULL,
+      phone VARCHAR(30),
       password_hash VARCHAR(255) NOT NULL,
-      role ENUM('customer','admin') NOT NULL DEFAULT 'customer',
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      role VARCHAR(20) NOT NULL DEFAULT 'customer'
+        CHECK (role IN ('customer', 'admin')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
   `);
 }
 
@@ -44,7 +45,7 @@ async function verifyPassword(password, stored) {
   if (!saltHex || !hashHex) return false;
   const expected = Buffer.from(hashHex, "hex");
   const actual = Buffer.from(await scrypt(password, Buffer.from(saltHex, "hex"), expected.length));
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
+  return expected.length === actual.length && timingSafeEqual(actual, expected);
 }
 
 function publicUser(user) {
@@ -71,14 +72,14 @@ router.post("/register", async (req, res) => {
       return res.status(403).json({ success: false, message: "Code d'invitation administrateur incorrect." });
     }
     const passwordHash = await hashPassword(password);
-    const [result] = await database.execute(
-      "INSERT INTO users (name, email, phone, password_hash, role) VALUES (?, ?, ?, ?, ?)",
+    const result = await database.query(
+      "INSERT INTO users (name, email, phone, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING id",
       [name.trim(), email.trim().toLowerCase(), phone.trim(), passwordHash, role]
     );
-    const user = { id: result.insertId, name: name.trim(), email: email.trim().toLowerCase(), phone: phone.trim(), role };
+    const user = { id: result.rows[0].id, name: name.trim(), email: email.trim().toLowerCase(), phone: phone.trim(), role };
     return res.status(201).json({ success: true, message: "Compte créé avec succès.", token: createToken(user), user: publicUser(user) });
   } catch (error) {
-    if (error.code === "ER_DUP_ENTRY") return res.status(409).json({ success: false, message: "Cette adresse e-mail possède déjà un compte." });
+    if (error.code === "23505") return res.status(409).json({ success: false, message: "Cette adresse e-mail possède déjà un compte." });
     console.error("Register error:", error);
     return res.status(500).json({ success: false, message: "Impossible de créer le compte pour le moment." });
   }
@@ -89,14 +90,14 @@ router.post("/login", async (req, res) => {
     await ensureUsersTable();
     const { email, password } = req.body || {};
     if (!email?.trim() || !password) return res.status(400).json({ success: false, message: "E-mail et mot de passe obligatoires." });
-    const [rows] = await database.execute(
-      "SELECT id, name, email, phone, password_hash, role FROM users WHERE email = ? LIMIT 1",
+    const result = await database.query(
+      "SELECT id, name, email, phone, password_hash, role FROM users WHERE email = $1 LIMIT 1",
       [email.trim().toLowerCase()]
     );
-    if (!rows.length || !(await verifyPassword(password, rows[0].password_hash))) {
+    if (!result.rows.length || !(await verifyPassword(password, result.rows[0].password_hash))) {
       return res.status(401).json({ success: false, message: "Adresse e-mail ou mot de passe incorrect." });
     }
-    const user = publicUser(rows[0]);
+    const user = publicUser(result.rows[0]);
     return res.json({ success: true, message: "Connexion réussie.", token: createToken(user), user });
   } catch (error) {
     console.error("Login error:", error);
@@ -107,12 +108,12 @@ router.post("/login", async (req, res) => {
 router.get("/me", requireAuth, async (req, res) => {
   try {
     await ensureUsersTable();
-    const [rows] = await database.execute(
-      "SELECT id, name, email, phone, role FROM users WHERE id = ? LIMIT 1",
+    const result = await database.query(
+      "SELECT id, name, email, phone, role FROM users WHERE id = $1 LIMIT 1",
       [req.auth.sub]
     );
-    if (!rows.length) return res.status(404).json({ success: false, message: "Compte introuvable." });
-    return res.json({ success: true, user: publicUser(rows[0]) });
+    if (!result.rows.length) return res.status(404).json({ success: false, message: "Compte introuvable." });
+    return res.json({ success: true, user: publicUser(result.rows[0]) });
   } catch (error) {
     console.error("Profile error:", error);
     return res.status(500).json({ success: false, message: "Impossible de charger le profil." });
