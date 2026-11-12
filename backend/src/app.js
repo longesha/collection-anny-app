@@ -4,6 +4,7 @@ import helmet from "helmet";
 import healthRoutes from "./routes/health.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import adminProductsRoutes from "./routes/admin.products.routes.js";
+import publicProductsRoutes from "./routes/public.products.routes.js";
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.get("/", (_req, res) => {
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin/products", adminProductsRoutes);
+app.use("/api/products", publicProductsRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
