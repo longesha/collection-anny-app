@@ -56,3 +56,5 @@
 @media(max-width:650px){.customer-modal{padding:28px 18px}.customer-modal h2{font-size:27px}.customer-profile{padding:12px}.customer-profile>img{width:68px;height:68px}.customer-order-bottom,.admin-order-bottom{align-items:flex-start;flex-direction:column}.customer-order-bottom>div,.admin-order-bottom>div{justify-content:flex-start}.customer-order-top,.admin-order-heading{align-items:flex-start;flex-direction:column}}
 
 .customer-logout{margin-top:22px;padding:10px 14px;border:1px solid #C5A15B;background:transparent;color:#514a3e;font-size:10px}
+
+.profile-phone-label{display:flex;flex-direction:column;gap:5px;color:#756F65;font-size:9px}.profile-phone-label input{width:min(260px,100%);padding:8px;border:1px solid #E4D8C5;background:#fff;font:inherit;font-size:10px}
