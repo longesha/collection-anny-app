@@ -6,6 +6,7 @@ const router = Router();
 
 router.get("/", requireAuth, requireAdmin, async (_req, res) => {
   try {
+    await database.query("CREATE TABLE IF NOT EXISTS orders (id BIGSERIAL PRIMARY KEY, reference VARCHAR(40) NOT NULL UNIQUE, user_id BIGINT NOT NULL REFERENCES users(id), customer_name VARCHAR(120) NOT NULL, customer_phone VARCHAR(30) NOT NULL, total NUMERIC(12,2) NOT NULL, status VARCHAR(30) NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
     const result = await database.query(`
       SELECT
         u.id, u.name, u.email, u.phone, u.avatar_url, u.created_at,
