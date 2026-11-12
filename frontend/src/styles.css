@@ -58,3 +58,5 @@
 .customer-logout{margin-top:22px;padding:10px 14px;border:1px solid #C5A15B;background:transparent;color:#514a3e;font-size:10px}
 
 .profile-phone-label{display:flex;flex-direction:column;gap:5px;color:#756F65;font-size:9px}.profile-phone-label input{width:min(260px,100%);padding:8px;border:1px solid #E4D8C5;background:#fff;font:inherit;font-size:10px}
+
+.admin-avatar-button{padding:0;border:0;overflow:hidden;cursor:pointer}.admin-avatar-button img{width:100%;height:100%;object-fit:cover}
