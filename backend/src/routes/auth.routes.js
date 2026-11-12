@@ -14,12 +14,14 @@ async function ensureUsersTable() {
       name VARCHAR(120) NOT NULL,
       email VARCHAR(190) NOT NULL UNIQUE,
       phone VARCHAR(30),
+      avatar_url TEXT,
       password_hash VARCHAR(255) NOT NULL,
       role VARCHAR(20) NOT NULL DEFAULT 'customer'
         CHECK (role IN ('customer', 'admin')),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await database.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT");
 }
 
 function createToken(user) {
@@ -49,7 +51,7 @@ async function verifyPassword(password, stored) {
 }
 
 function publicUser(user) {
-  return { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role };
+  return { id: user.id, name: user.name, email: user.email, phone: user.phone, avatar_url: user.avatar_url || "", role: user.role };
 }
 
 router.post("/register", async (req, res) => {
@@ -91,7 +93,7 @@ router.post("/login", async (req, res) => {
     const { email, password } = req.body || {};
     if (!email?.trim() || !password) return res.status(400).json({ success: false, message: "E-mail et mot de passe obligatoires." });
     const result = await database.query(
-      "SELECT id, name, email, phone, password_hash, role FROM users WHERE email = $1 LIMIT 1",
+      "SELECT id, name, email, phone, avatar_url, password_hash, role FROM users WHERE email = $1 LIMIT 1",
       [email.trim().toLowerCase()]
     );
     if (!result.rows.length || !(await verifyPassword(password, result.rows[0].password_hash))) {
@@ -109,7 +111,7 @@ router.get("/me", requireAuth, async (req, res) => {
   try {
     await ensureUsersTable();
     const result = await database.query(
-      "SELECT id, name, email, phone, role FROM users WHERE id = $1 LIMIT 1",
+      "SELECT id, name, email, phone, avatar_url, role FROM users WHERE id = $1 LIMIT 1",
       [req.auth.sub]
     );
     if (!result.rows.length) return res.status(404).json({ success: false, message: "Compte introuvable." });
@@ -117,6 +119,25 @@ router.get("/me", requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Profile error:", error);
     return res.status(500).json({ success: false, message: "Impossible de charger le profil." });
+  }
+});
+
+router.put("/profile", requireAuth, async (req, res) => {
+  try {
+    await ensureUsersTable();
+    const avatarUrl = String(req.body?.avatar_url || "");
+    if (avatarUrl.length > 900000 || (avatarUrl && !avatarUrl.startsWith("data:image/"))) {
+      return res.status(400).json({ success: false, message: "Photo invalide ou trop volumineuse." });
+    }
+    const result = await database.query(
+      "UPDATE users SET avatar_url=$1 WHERE id=$2 RETURNING id, name, email, phone, avatar_url, role",
+      [avatarUrl || null, req.auth.sub]
+    );
+    if (!result.rowCount) return res.status(404).json({ success: false, message: "Compte introuvable." });
+    return res.json({ success: true, user: publicUser(result.rows[0]) });
+  } catch (error) {
+    console.error("Profile update error:", error);
+    return res.status(500).json({ success: false, message: "Impossible de mettre à jour la photo." });
   }
 });
 
