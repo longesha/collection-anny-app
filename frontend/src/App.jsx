@@ -77,7 +77,7 @@ function App() {
     if (sort === "low") list = [...list].sort((a, b) => a.price - b.price);
     if (sort === "high") list = [...list].sort((a, b) => b.price - a.price);
     return list;
-  }, [category, search, sort]);
+  }, [products, category, search, sort]);
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
