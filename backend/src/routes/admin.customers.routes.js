@@ -38,4 +38,35 @@ router.get("/", requireAuth, requireAdmin, async (_req, res) => {
   }
 });
 
+
+router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
+  const customerId = Number(req.params.id);
+  if (!Number.isInteger(customerId) || customerId < 1) {
+    return res.status(400).json({ success: false, message: "Identifiant client invalide." });
+  }
+  try {
+    const deleted = await database.query(
+      "DELETE FROM users u WHERE u.id = $1 AND u.role = 'customer' AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id) RETURNING u.id",
+      [customerId]
+    );
+    if (deleted.rowCount) {
+      return res.json({ success: true, message: "Compte client supprimé." });
+    }
+    const existing = await database.query(
+      "SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND role = 'customer') AS customer_exists, EXISTS(SELECT 1 FROM orders WHERE user_id = $1) AS has_orders",
+      [customerId]
+    );
+    if (!existing.rows[0].customer_exists) {
+      return res.status(404).json({ success: false, message: "Client introuvable." });
+    }
+    if (existing.rows[0].has_orders) {
+      return res.status(409).json({ success: false, message: "Ce client possède un historique de commandes. Son compte ne peut pas être supprimé afin de conserver les ventes enregistrées." });
+    }
+    return res.status(409).json({ success: false, message: "Impossible de supprimer ce client." });
+  } catch (error) {
+    console.error("Delete customer:", error);
+    res.status(500).json({ success: false, message: "Impossible de supprimer le client pour le moment." });
+  }
+});
+
 export default router;
