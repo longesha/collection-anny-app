@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import AdminOrdersPanel from "./AdminOrdersPanel.jsx";
+import CustomerAccount from "./CustomerAccount.jsx";
 
 const emptyForm = { name: "", category: "Boubous", price: "", color: "", image_url: "", description: "", stock: "0" };
 const money = (value) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(Number(value || 0));
 
-export default function AdminDashboard({ user, onLogout }) {
+export default function AdminDashboard({ user, onLogout, onUserUpdated }) {
+  const [accountOpen, setAccountOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
@@ -80,7 +82,7 @@ export default function AdminDashboard({ user, onLogout }) {
       <div className="admin-sidebar-bottom"><small>Connecté en tant que</small><strong>{user.name}</strong><button onClick={onLogout}>Déconnexion</button></div>
     </aside>
     <main className="admin-main" id="admin">
-      <header className="admin-topbar"><div><p className="eyebrow">COLLECTION ANNY · ADMINISTRATION</p><h1>Bonjour, {user.name}</h1><p>Gérez votre boutique depuis cet espace.</p></div><span className="admin-avatar">{(user.name || "A").charAt(0).toUpperCase()}</span></header>
+      <header className="admin-topbar"><div><p className="eyebrow">COLLECTION ANNY · ADMINISTRATION</p><h1>Bonjour, {user.name}</h1><p>Gérez votre boutique depuis cet espace.</p></div><button className="admin-avatar admin-avatar-button" onClick={() => setAccountOpen(true)} title="Mon profil">{user.avatar_url ? <img src={user.avatar_url} alt="Profil"/> : (user.name || "A").charAt(0).toUpperCase()}</button></header>
       <section className="admin-stat-grid">
         <article className="admin-stat"><span>Produits enregistrés</span><strong>{products.length}</strong><small>Dans votre catalogue</small></article>
         <article className="admin-stat"><span>Unités en stock</span><strong>{stockTotal}</strong><small>Quantité cumulée</small></article>
@@ -106,5 +108,6 @@ export default function AdminDashboard({ user, onLogout }) {
         {loading ? <p>Chargement des produits...</p> : products.length === 0 ? <p className="admin-empty">Aucun produit enregistré. Ajoutez votre premier article ci-dessus.</p> : <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Produit</th><th>Catégorie</th><th>Prix</th><th>Stock</th><th>Actions</th></tr></thead><tbody>{products.map((product) => <tr key={product.id}><td><div className="admin-product-name">{product.image_url && <img src={product.image_url} alt=""/>}<strong>{product.name}</strong></div></td><td>{product.category}</td><td>{money(product.price)}</td><td><span className={Number(product.stock) === 0 ? "stock-zero" : "stock-ok"}>{product.stock}</span></td><td><div className="admin-row-actions"><button onClick={() => edit(product)}>Modifier</button><button onClick={() => remove(product)}>Supprimer</button></div></td></tr>)}</tbody></table></div>}
       </section>
     </main>
+    {accountOpen && <CustomerAccount user={user} onClose={() => setAccountOpen(false)} onUserUpdated={onUserUpdated} onLogout={() => { onLogout(); setAccountOpen(false); }} />}
   </div>;
 }
