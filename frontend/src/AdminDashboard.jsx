@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import AdminOrdersPanel from "./AdminOrdersPanel.jsx";
+import AdminCustomersPanel from "./AdminCustomersPanel.jsx";
 import CustomerAccount from "./CustomerAccount.jsx";
 
 const emptyForm = { name: "", category: "Boubous", price: "", color: "", image_url: "", description: "", stock: "0" };
@@ -77,7 +78,7 @@ export default function AdminDashboard({ user, onLogout, onUserUpdated }) {
       <a className="admin-nav active" href="#admin">▦ Tableau de bord</a>
       <a className="admin-nav" href="#admin-products">◇ Produits</a>
       <a className="admin-nav" href="#admin-orders">▤ Commandes</a>
-      <span className="admin-nav muted">♙ Clients — bientôt</span>
+      <a className="admin-nav" href="#admin-customers">♙ Clients</a>
       <span className="admin-nav muted">▥ Statistiques — bientôt</span>
       <div className="admin-sidebar-bottom"><small>Connecté en tant que</small><strong>{user.name}</strong><button onClick={onLogout}>Déconnexion</button></div>
     </aside>
@@ -89,6 +90,7 @@ export default function AdminDashboard({ user, onLogout, onUserUpdated }) {
         <article className="admin-stat"><span>Produits en rupture</span><strong>{products.filter((p) => Number(p.stock) === 0).length}</strong><small>Stock égal à zéro</small></article>
       </section>
       <AdminOrdersPanel />
+      <AdminCustomersPanel />
       <section className="admin-panel" id="admin-products">
         <div className="admin-panel-heading"><div><p className="eyebrow">CATALOGUE</p><h2>{editingId ? "Modifier un produit" : "Ajouter un produit"}</h2></div></div>
         <form className="admin-product-form" onSubmit={submit}>
