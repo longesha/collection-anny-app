@@ -58,8 +58,8 @@ router.post("/register", async (req, res) => {
   try {
     await ensureUsersTable();
     const { name, email, phone = "", password, role = "customer", adminCode = "" } = req.body || {};
-    if (!name?.trim() || !email?.trim() || !password) {
-      return res.status(400).json({ success: false, message: "Nom, adresse e-mail et mot de passe sont obligatoires." });
+    if (!name?.trim() || !email?.trim() || !phone?.trim() || !password) {
+      return res.status(400).json({ success: false, message: "Nom, téléphone, adresse e-mail et mot de passe sont obligatoires." });
     }
     if (name.trim().length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return res.status(400).json({ success: false, message: "Veuillez vérifier le nom et l'adresse e-mail." });
@@ -125,13 +125,17 @@ router.get("/me", requireAuth, async (req, res) => {
 router.put("/profile", requireAuth, async (req, res) => {
   try {
     await ensureUsersTable();
-    const avatarUrl = String(req.body?.avatar_url || "");
-    if (avatarUrl.length > 900000 || (avatarUrl && !avatarUrl.startsWith("data:image/"))) {
+    const avatarUrl = req.body?.avatar_url === undefined ? null : String(req.body.avatar_url || "");
+    const phone = req.body?.phone === undefined ? null : String(req.body.phone || "").trim();
+    if (avatarUrl !== null && (avatarUrl.length > 900000 || (avatarUrl && !avatarUrl.startsWith("data:image/")))) {
       return res.status(400).json({ success: false, message: "Photo invalide ou trop volumineuse." });
     }
+    if (phone !== null && (!phone || phone.length > 30)) {
+      return res.status(400).json({ success: false, message: "Veuillez saisir un numéro de téléphone valide." });
+    }
     const result = await database.query(
-      "UPDATE users SET avatar_url=$1 WHERE id=$2 RETURNING id, name, email, phone, avatar_url, role",
-      [avatarUrl || null, req.auth.sub]
+      "UPDATE users SET avatar_url=CASE WHEN $1::text IS NULL THEN avatar_url ELSE $1 END, phone=COALESCE($2,phone) WHERE id=$3 RETURNING id, name, email, phone, avatar_url, role",
+      [avatarUrl, phone, req.auth.sub]
     );
     if (!result.rowCount) return res.status(404).json({ success: false, message: "Compte introuvable." });
     return res.json({ success: true, user: publicUser(result.rows[0]) });
