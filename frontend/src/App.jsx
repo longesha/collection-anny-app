@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminDashboard from "./AdminDashboard.jsx";
+import CustomerAccount from "./CustomerAccount.jsx";
 
 const money = (value) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 
@@ -13,6 +14,8 @@ function App() {
   const [selected, setSelected] = useState(null);
   const [notice, setNotice] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [orderLoading, setOrderLoading] = useState(false);
   const [authMode, setAuthMode] = useState("login");
   const [authRole, setAuthRole] = useState("customer");
   const [authForm, setAuthForm] = useState({ name: "", email: "", phone: "", password: "", adminCode: "" });
@@ -146,11 +149,34 @@ function App() {
     setCart((current) => current.map((item) => item.id === id ? { ...item, quantity: item.quantity + amount } : item).filter((item) => item.quantity > 0));
   }
 
-  function sendOrder() {
-    if (!cart.length) return;
-    const lines = cart.map((item) => "• " + item.name + " x" + item.quantity + " — " + money(item.price * item.quantity)).join("\n");
-    const message = ["Bonjour Collection Anny, je souhaite commander :", lines, "", "Total indicatif : " + money(total), "Merci de confirmer la disponibilité et les modalités de livraison."].join("\n");
-    window.open("https://wa.me/243820744897?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
+  async function sendOrder() {
+    if (!cart.length || orderLoading) return;
+    if (!currentUser) {
+      setCartOpen(false);
+      setAuthMode("register");
+      setAuthOpen(true);
+      setAuthError("Créez un compte ou connectez-vous pour enregistrer votre commande.");
+      return;
+    }
+    setOrderLoading(true);
+    try {
+      const token = localStorage.getItem("collection_anny_token");
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({ items: cart.map(item => ({ id: item.id, quantity: item.quantity })) })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Impossible d'enregistrer la commande.");
+      setCart([]);
+      setCartOpen(false);
+      setAccountOpen(true);
+      setNotice("Commande " + data.order.reference + " enregistrée avec succès.");
+      window.setTimeout(() => setNotice(""), 4000);
+    } catch (error) {
+      setNotice(error.message || "Une erreur est survenue.");
+      window.setTimeout(() => setNotice(""), 4500);
+    } finally { setOrderLoading(false); }
   }
 
   if (currentUser?.role === "admin") return <AdminDashboard user={currentUser} onLogout={logout} />;
@@ -164,7 +190,7 @@ function App() {
         <nav className={"main-nav " + (mobileOpen ? "is-open" : "")} aria-label="Navigation principale">
           <a onClick={() => setMobileOpen(false)} href="#accueil">Accueil</a><a onClick={() => setMobileOpen(false)} href="#boutique">Boutique</a><a onClick={() => setMobileOpen(false)} href="#histoire">Notre histoire</a><a onClick={() => setMobileOpen(false)} href="#contact">Contact</a>
         </nav>
-        <button className="account-trigger" onClick={() => currentUser ? logout() : (setAuthMode("login"), setAuthOpen(true))}>{currentUser ? "Déconnexion" : "Mon compte"}</button>
+        <button className="account-trigger" onClick={() => currentUser ? setAccountOpen(true) : (setAuthMode("login"), setAuthOpen(true))}>{currentUser ? "Bonjour, " + currentUser.name.split(" ")[0] : "Mon compte"}</button>
         <button className="cart-trigger" onClick={() => setCartOpen(true)} aria-label={"Ouvrir le panier, " + cartCount + " articles"}><span>Panier</span><span className="cart-count">{cartCount}</span></button>
       </header>
       <main>
@@ -187,8 +213,9 @@ function App() {
       <footer className="site-footer"><a className="footer-brand" href="#accueil">Collection Anny<span>.</span></a><span>© {new Date().getFullYear()} Collection Anny. Tous droits réservés.</span><a href="#accueil">Retour en haut ↑</a></footer>
       {notice && <div className="toast" role="status">{notice}</div>}
       {cartOpen && <div className="overlay" onClick={() => setCartOpen(false)}><aside className="cart-drawer" onClick={(event) => event.stopPropagation()}><div className="drawer-heading"><div><p className="eyebrow">VOTRE SÉLECTION</p><h2>Mon panier <span>({cartCount})</span></h2></div><button onClick={() => setCartOpen(false)} aria-label="Fermer le panier">✕</button></div>
-        {cart.length ? <><div className="cart-items">{cart.map((item) => <div className="cart-item" key={item.id}><img src={item.image} alt="" /><div className="cart-item-info"><strong>{item.name}</strong><small>{money(item.price)} · {item.color}</small><div className="quantity-control"><button onClick={() => changeQuantity(item.id, -1)} aria-label="Diminuer">−</button><span>{item.quantity}</span><button onClick={() => changeQuantity(item.id, 1)} aria-label="Augmenter">＋</button></div></div><strong>{money(item.price * item.quantity)}</strong></div>)}</div><div className="cart-summary"><div><span>Sous-total indicatif</span><strong>{money(total)}</strong></div><small>La disponibilité, le prix final et la livraison seront confirmés par la boutique.</small><button className="button button-dark checkout-button" onClick={sendOrder}>Continuer sur WhatsApp <span>↗</span></button></div></> : <div className="cart-empty"><span>♡</span><h3>Votre panier est vide</h3><p>Ajoutez vos coups de cœur pour les retrouver ici.</p><button className="button button-dark" onClick={() => setCartOpen(false)}>Explorer la boutique</button></div>}
+        {cart.length ? <><div className="cart-items">{cart.map((item) => <div className="cart-item" key={item.id}><img src={item.image} alt="" /><div className="cart-item-info"><strong>{item.name}</strong><small>{money(item.price)} · {item.color}</small><div className="quantity-control"><button onClick={() => changeQuantity(item.id, -1)} aria-label="Diminuer">−</button><span>{item.quantity}</span><button onClick={() => changeQuantity(item.id, 1)} aria-label="Augmenter">＋</button></div></div><strong>{money(item.price * item.quantity)}</strong></div>)}</div><div className="cart-summary"><div><span>Sous-total indicatif</span><strong>{money(total)}</strong></div><small>La disponibilité, le prix final et la livraison seront confirmés par la boutique.</small><button className="button button-dark checkout-button" onClick={sendOrder} disabled={orderLoading}>{orderLoading ? "Enregistrement..." : currentUser ? "Valider ma commande" : "Créer un compte pour commander"} <span>↗</span></button></div></> : <div className="cart-empty"><span>♡</span><h3>Votre panier est vide</h3><p>Ajoutez vos coups de cœur pour les retrouver ici.</p><button className="button button-dark" onClick={() => setCartOpen(false)}>Explorer la boutique</button></div>}
       </aside></div>}
+      {accountOpen && currentUser && <CustomerAccount user={currentUser} onClose={() => setAccountOpen(false)} onUserUpdated={setCurrentUser} />}
       {authOpen && <div className="overlay modal-overlay" onClick={() => setAuthOpen(false)}><section className="auth-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setAuthOpen(false)} aria-label="Fermer">✕</button><div className="auth-brand"><span className="brand-mark">CA</span><strong>Collection Anny</strong></div><p className="eyebrow">{authMode === "register" ? "REJOIGNEZ NOTRE BOUTIQUE" : "HEUREUX DE VOUS RETROUVER"}</p><h2>{authMode === "register" ? "Créer un compte" : "Se connecter"}</h2><p className="auth-intro">{authMode === "register" ? "Créez votre espace personnel." : "Accédez à votre espace Collection Anny."}</p><form onSubmit={submitAuth} className="auth-form">{authMode === "register" && <><label>Nom complet<input required maxLength="120" value={authForm.name} onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })} placeholder="Votre nom complet" /></label><label>Téléphone<input value={authForm.phone} onChange={(e) => setAuthForm({ ...authForm, phone: e.target.value })} placeholder="+243..." /></label><div className="auth-role"><button type="button" className={authRole === "customer" ? "selected" : ""} onClick={() => setAuthRole("customer")}>Compte client</button><button type="button" className={authRole === "admin" ? "selected" : ""} onClick={() => setAuthRole("admin")}>Administrateur</button></div>{authRole === "admin" && <label>Code d'invitation administrateur<input required value={authForm.adminCode} onChange={(e) => setAuthForm({ ...authForm, adminCode: e.target.value })} placeholder="Code secret privé" /></label>}</>}<label>Adresse e-mail<input type="email" required autoComplete="email" value={authForm.email} onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })} placeholder="nom@exemple.com" /></label><label>Mot de passe<input type="password" required minLength="8" autoComplete={authMode === "register" ? "new-password" : "current-password"} value={authForm.password} onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })} placeholder="8 caractères minimum" /></label>{authError && <p className="auth-error" role="alert">{authError}</p>}<button className="button button-dark auth-submit" type="submit" disabled={authLoading}>{authLoading ? "Veuillez patienter..." : authMode === "register" ? "Créer mon compte" : "Se connecter"}</button></form><p className="auth-switch">{authMode === "register" ? "Vous avez déjà un compte ?" : "Vous n'avez pas encore de compte ?"} <button onClick={() => { setAuthMode(authMode === "register" ? "login" : "register"); setAuthError(""); }}>{authMode === "register" ? "Se connecter" : "Créer un compte"}</button></p><p className="auth-security">Les comptes administrateur nécessitent un code d'invitation privé.</p></section></div>}
       {selected && <div className="overlay modal-overlay" onClick={() => setSelected(null)}><section className="product-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)} aria-label="Fermer">✕</button><img src={selected.image} alt={selected.name} /><div className="modal-copy"><p className="eyebrow">{selected.category} · {selected.color}</p><h2>{selected.name}</h2><strong>{money(selected.price)}</strong><p>{selected.description}</p><small>Article de démonstration — disponibilité à confirmer.</small><button className="button button-dark" onClick={() => { addToCart(selected); setSelected(null); setCartOpen(true); }}>Ajouter au panier <span>＋</span></button></div></section></div>}
     </div>
