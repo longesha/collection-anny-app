@@ -60,3 +60,32 @@
 .profile-phone-label{display:flex;flex-direction:column;gap:5px;color:#756F65;font-size:9px}.profile-phone-label input{width:min(260px,100%);padding:8px;border:1px solid #E4D8C5;background:#fff;font:inherit;font-size:10px}
 
 .admin-avatar-button{padding:0;border:0;overflow:hidden;cursor:pointer}.admin-avatar-button img{width:100%;height:100%;object-fit:cover}
+
+
+/* Gestion des clients */
+.customers-toolbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:16px}
+.customers-toolbar input{flex:1;min-width:180px;padding:11px 13px;border:1px solid #E4D8C5;background:#FAF8F3;font:inherit;font-size:11px}
+.customers-toolbar span{color:#756F65;font-size:10px;white-space:nowrap}
+.admin-customers-list{display:flex;flex-direction:column;gap:10px}
+.admin-customer{border:1px solid #E4D8C5;background:#FAF8F3}
+.admin-customer summary{display:flex;align-items:center;gap:13px;padding:14px;cursor:pointer;list-style:none}
+.admin-customer summary::-webkit-details-marker{display:none}
+.admin-customer-avatar{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;overflow:hidden;border-radius:50%;background:#E8DDCA;color:#80612D;font-family:"Playfair Display",serif;font-size:18px}
+.admin-customer-avatar img{width:100%;height:100%;object-fit:cover}
+.admin-customer-identity{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}
+.admin-customer-identity strong{font-size:11px}
+.admin-customer-identity small,.admin-customer-metrics small{overflow-wrap:anywhere;color:#756F65;font-size:9px}
+.admin-customer-metrics{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right}
+.admin-customer-metrics strong{font-size:10px}
+.admin-customer-chevron{color:#9B793E;font-size:18px}
+.admin-customer[open] .admin-customer-chevron{transform:rotate(180deg)}
+.admin-customer-details{padding:15px 18px 18px;border-top:1px solid #E4D8C5;background:#fff}
+.admin-customer-details>p{margin:6px 0;color:#756F65;font-size:10px}
+.admin-customer-details h3{margin:18px 0 10px;font-family:"Playfair Display",serif;font-size:18px;font-weight:500}
+.admin-customer-whatsapp{display:inline-block;margin-top:8px;padding:8px 11px;border:1px solid #C5A15B;color:#514a3e;font-size:10px}
+.admin-customer-orders{display:flex;flex-direction:column;gap:7px}
+.admin-customer-orders>div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px;background:#FAF8F3}
+.admin-customer-orders>div>span:first-child{display:flex;flex-direction:column;gap:4px}
+.admin-customer-orders small{color:#756F65;font-size:9px}
+.admin-customer-orders>div>strong{font-size:10px;white-space:nowrap}
+@media(max-width:600px){.customers-toolbar{align-items:stretch;flex-direction:column}.admin-customer summary{gap:8px;padding:10px}.admin-customer-avatar{width:34px;height:34px;flex-basis:34px}.admin-customer-metrics strong{font-size:9px}.admin-customer-orders>div{align-items:flex-start;flex-wrap:wrap}}
